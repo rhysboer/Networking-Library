@@ -1,70 +1,158 @@
 #include "Client.h"
-#include "Gizmos.h"
-#include "Input.h"
-#include <glm/glm.hpp>
-#include <glm/ext.hpp>
-#include <iostream>
-
-using glm::vec3;
-using glm::vec4;
-using glm::mat4;
-using aie::Gizmos;
 
 Client::Client() {
-
 }
 
 Client::~Client() {
+	m_thread->join();
+	delete m_thread;
+	m_thread = nullptr;
 }
 
-bool Client::startup() {
+
+void Client::StartUp(char* ip, unsigned short port) {
+	HandleNetworkConnection();
+	InitaiseClientConnection(ip, port);
+
+	FillBuffer();
+
+	m_thread = new std::thread(&Client::Test, this);
+}
+
+void Client::Update() {
+	HandleNetworkMessages();
+	PrintBuffer();
+}
+
+void Client::HandleNetworkConnection() {
+	m_pPeerInterface = RakNet::RakPeerInterface::GetInstance();
+}
+
+void Client::InitaiseClientConnection(char* ip, const unsigned short port) {
+	RakNet::SocketDescriptor sd;
 	
-	setBackgroundColour(0.25f, 0.25f, 0.25f);
+	IP = ip;
+	PORT = port;
 
-	// initialise gizmo primitive counts
-	Gizmos::create(10000, 10000, 10000, 10000);
-
-	// create simple camera transforms
-	m_viewMatrix = glm::lookAt(vec3(10), vec3(0), vec3(0, 1, 0));
-	m_projectionMatrix = glm::perspective(glm::pi<float>() * 0.25f,
-										  getWindowWidth() / (float)getWindowHeight(),
-										  0.1f, 1000.f);
-
-
-	return true;
-}
-
-void Client::shutdown() {
-
-	Gizmos::destroy();
-}
-
-void Client::update(float deltaTime) {
-
-	// query time since application started
-	float time = getTime();
-
-	// wipe the gizmos clean for this frame
-	Gizmos::clear();
-
+	m_pPeerInterface->Startup(1, &sd, 1);
 	
-	// quit if we press escape
-	aie::Input* input = aie::Input::getInstance();
-
-	if (input->isKeyDown(aie::INPUT_KEY_ESCAPE))
-		quit();
+	std::cout << "Connecting to server at: " << IP << std::endl;
+	
+	RakNet::ConnectionAttemptResult res = m_pPeerInterface->Connect(IP, PORT, nullptr, 0);
+	
+	if(res != RakNet::CONNECTION_ATTEMPT_STARTED) {
+		std::cout << "Unable to start connection, Error number: " << (unsigned char)res << std::endl;
+	}
 }
 
-void Client::draw() {
+void Client::HandleNetworkMessages() {
+	RakNet::Packet* packet;
+	
+	for(packet = m_pPeerInterface->Receive(); packet; m_pPeerInterface->DeallocatePacket(packet), packet = m_pPeerInterface->Receive()) {
+		switch(packet->data[0]) {
+		case ID_REMOTE_DISCONNECTION_NOTIFICATION:
+			std::cout << "Another client has disconnected.\n";
+			break;
+		case ID_REMOTE_CONNECTION_LOST:
+			std::cout << "Another client has lost the connection.\n";
+			break;
+		case ID_REMOTE_NEW_INCOMING_CONNECTION:
+			std::cout << "Another client has connected.\n";
+			break;
+		case ID_CONNECTION_REQUEST_ACCEPTED:
+			//std::cout << "Successfully connected to server!.\n";
+			AddMessage("Successfully connected to server!.");
+			break;
+		case ID_NO_FREE_INCOMING_CONNECTIONS:
+			std::cout << "The server is full.\n";
+			break;
+		case ID_DISCONNECTION_NOTIFICATION:
+			std::cout << "We have been disconnected.\n";
+			break;
+		case ID_CONNECTION_LOST:
+			std::cout << "Connection lost.\n";
+			break;
+		case ID_SERVER_TEXT_MESSAGE:
+		{
+			RakNet::BitStream bsIn(packet->data, packet->length, false);
+			bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 
-	// wipe the screen to the background colour
-	clearScreen();
+			RakNet::RakString str;
+			bsIn.Read(str);
+			AddMessage(str.C_String());
+			//std::cout << str.C_String() << std::endl;
 
-	// update perspective in case window resized
-	m_projectionMatrix = glm::perspective(glm::pi<float>() * 0.25f,
-										  getWindowWidth() / (float)getWindowHeight(),
-										  0.1f, 1000.f);
-
-	Gizmos::draw(m_projectionMatrix * m_viewMatrix);
+			break;
+		}
+		default: 
+			std::cout << "Received a message with a unknown id: " << packet->data[0];
+			break; 
+		}
+	}
 }
 
+void Client::Test() {
+	while(1) {
+		COORD coord;
+		coord.X = 0;
+		coord.Y = 0;
+
+		//if(m_hasBufferChanged) {
+			for(int i = CHAT_BUFFER_SIZE - 1; i > 0; i--) {
+				coord.X = 0;
+				coord.Y = i;
+				SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+				std::cout << m_chatBuffer[i] << std::endl;
+			}
+
+			m_hasBufferChanged = false;
+
+			coord.X = m_buffer.size();
+			coord.Y = CHAT_BUFFER_SIZE;
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+		//}
+	}
+}
+
+void Client::AddMessage(const std::string message) {
+	for(int i = CHAT_BUFFER_SIZE - 1; i >= 0; i--) {
+		if(i == 0) {
+			m_chatBuffer[0] = message;
+		} else {
+			m_chatBuffer[i] = m_chatBuffer[i - 1];
+		}
+	}
+
+	m_hasBufferChanged = true;
+}
+
+void Client::PrintBuffer() {
+	//if(m_hasBufferChanged) {
+	//	for(int i = CHAT_BUFFER_SIZE - 1; i > 0; i--) {
+	//		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+	//		std::cout << m_chatBuffer[i] << std::endl;
+	//	}
+	//}
+
+	std::cin >> m_buffer;
+	AddMessage(m_buffer);
+}
+
+void Client::FillBuffer() {
+	for(int i = 0; i < CHAT_BUFFER_SIZE; i++) {
+		m_chatBuffer.push_back("");
+	}
+}
+
+
+/*
+temp = 4
+
+5
+4
+3
+2
+1
+1
+
+*/

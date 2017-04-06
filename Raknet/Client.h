@@ -1,22 +1,50 @@
 #pragma once
+#include <iostream>
+#include <cstdio>
+#include <thread>
+#include <string>
+#include <vector>
+#include "RakPeerInterface.h"
+#include "MessageIdentifiers.h"
+#include "BitStream.h"
+#include "GameMessages.h"
 
-#include "Application.h"
-#include <glm/mat4x4.hpp>
-
-class Client : public aie::Application {
+class Client {
 public:
-
 	Client();
-	virtual ~Client();
+	~Client();
 
-	virtual bool startup();
-	virtual void shutdown();
+	void StartUp(char* ip, unsigned short port);
+	void Update();
 
-	virtual void update(float deltaTime);
-	virtual void draw();
+private:
+	// Initialize the connection
+	void HandleNetworkConnection();
+	void InitaiseClientConnection(char* ip, unsigned short port);
 
-protected:
+	// Handle incoming packets
+	void HandleNetworkMessages();
 
-	glm::mat4	m_viewMatrix;
-	glm::mat4	m_projectionMatrix;
+	// Private Variables
+	RakNet::RakPeerInterface* m_pPeerInterface;
+
+	// CHAT
+
+	std::thread* m_thread;
+
+	void Test();
+
+	void AddMessage(const std::string message);
+	void PrintBuffer();
+	void FillBuffer();
+
+	bool m_hasBufferChanged = true;
+	
+	const short CHAT_BUFFER_SIZE = 22;
+	std::string m_buffer = "";
+	std::vector<std::string> m_chatBuffer;
+
+
+	char* IP = "0.0.0.0";
+	unsigned short PORT = 0;
 };
