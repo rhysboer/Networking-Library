@@ -1,4 +1,3 @@
-﻿  Server.cpp
-  main.cpp
-  Generating Code...
+﻿  main.cpp
+cl : Command line warning D9028: minimal rebuild failure, reverting to normal build
   Server.vcxproj -> C:\Users\s171372\Documents\Visual Studio 2015\Projects\NetworkLib\Debug\Server.exe

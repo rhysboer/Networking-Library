@@ -1,13 +1,17 @@
 #pragma once
 #include <iostream>
-#include <cstdio>
+#include <conio.h>
 #include <thread>
 #include <string>
 #include <vector>
+#include <mutex>
 #include "RakPeerInterface.h"
 #include "MessageIdentifiers.h"
 #include "BitStream.h"
 #include "GameMessages.h"
+
+#define ENTER 13
+#define BACKSPACE 8
 
 class Client {
 public:
@@ -30,9 +34,12 @@ private:
 
 	// CHAT
 
-	std::thread* m_thread;
+	std::thread* m_inputThread;
+	std::thread* m_printThread;
 
-	void Test();
+	std::mutex mutex;
+
+	void GetInput();
 
 	void AddMessage(const std::string message);
 	void PrintBuffer();
@@ -40,7 +47,7 @@ private:
 
 	bool m_hasBufferChanged = true;
 	
-	const short CHAT_BUFFER_SIZE = 22;
+	const short CHAT_BUFFER_SIZE = 12;
 	std::string m_buffer = "";
 	std::vector<std::string> m_chatBuffer;
 

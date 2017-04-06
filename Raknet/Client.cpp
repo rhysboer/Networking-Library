@@ -4,9 +4,9 @@ Client::Client() {
 }
 
 Client::~Client() {
-	m_thread->join();
-	delete m_thread;
-	m_thread = nullptr;
+	m_inputThread->join();
+	delete m_inputThread;
+	m_inputThread = nullptr;
 }
 
 
@@ -16,12 +16,14 @@ void Client::StartUp(char* ip, unsigned short port) {
 
 	FillBuffer();
 
-	m_thread = new std::thread(&Client::Test, this);
+	// Input Thread
+	m_inputThread = new std::thread(&Client::GetInput, this);
+	m_printThread = new std::thread(&Client::PrintBuffer, this);
 }
 
 void Client::Update() {
 	HandleNetworkMessages();
-	PrintBuffer();
+	//PrintBuffer();
 }
 
 void Client::HandleNetworkConnection() {
@@ -60,7 +62,6 @@ void Client::HandleNetworkMessages() {
 			std::cout << "Another client has connected.\n";
 			break;
 		case ID_CONNECTION_REQUEST_ACCEPTED:
-			//std::cout << "Successfully connected to server!.\n";
 			AddMessage("Successfully connected to server!.");
 			break;
 		case ID_NO_FREE_INCOMING_CONNECTIONS:
@@ -80,7 +81,6 @@ void Client::HandleNetworkMessages() {
 			RakNet::RakString str;
 			bsIn.Read(str);
 			AddMessage(str.C_String());
-			//std::cout << str.C_String() << std::endl;
 
 			break;
 		}
@@ -91,26 +91,28 @@ void Client::HandleNetworkMessages() {
 	}
 }
 
-void Client::Test() {
-	while(1) {
-		COORD coord;
-		coord.X = 0;
-		coord.Y = 0;
+void Client::GetInput() {
+	while(true) {
+		if(_kbhit()) {
+			int ch = _getch();
 
-		//if(m_hasBufferChanged) {
-			for(int i = CHAT_BUFFER_SIZE - 1; i > 0; i--) {
-				coord.X = 0;
-				coord.Y = i;
-				SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-				std::cout << m_chatBuffer[i] << std::endl;
+			switch(ch) {
+			case BACKSPACE:
+				if(m_buffer.size() > 0) {
+					m_buffer.pop_back();
+					m_hasBufferChanged = true;
+				}
+				break;
+			case ENTER:
+				AddMessage(m_buffer);
+				m_buffer.clear();
+				break;
+			default:
+				m_buffer += ch;
+				m_hasBufferChanged = true;
+				break;
 			}
-
-			m_hasBufferChanged = false;
-
-			coord.X = m_buffer.size();
-			coord.Y = CHAT_BUFFER_SIZE;
-			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-		//}
+		}
 	}
 }
 
@@ -127,15 +129,19 @@ void Client::AddMessage(const std::string message) {
 }
 
 void Client::PrintBuffer() {
-	//if(m_hasBufferChanged) {
-	//	for(int i = CHAT_BUFFER_SIZE - 1; i > 0; i--) {
-	//		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-	//		std::cout << m_chatBuffer[i] << std::endl;
-	//	}
-	//}
+	while(true) {
+		if(m_hasBufferChanged) {
+			system("cls");
+			for(int i = CHAT_BUFFER_SIZE - 1; i >= 0; i--) {
+				std::cout << m_chatBuffer[i] << std::endl;
+			}
 
-	std::cin >> m_buffer;
-	AddMessage(m_buffer);
+			std::cout << "____________________" << std::endl;
+			std::cout << "> " << m_buffer;
+
+			m_hasBufferChanged = false;
+		}
+	}
 }
 
 void Client::FillBuffer() {
@@ -143,16 +149,3 @@ void Client::FillBuffer() {
 		m_chatBuffer.push_back("");
 	}
 }
-
-
-/*
-temp = 4
-
-5
-4
-3
-2
-1
-1
-
-*/

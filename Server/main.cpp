@@ -34,7 +34,7 @@ void PingClient(RakNet::RakPeerInterface * pPeerInterface) {
 		bs.Write(ping.c_str());
 
 		pPeerInterface->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::this_thread::sleep_for(std::chrono::seconds(5));
 		i++;
 	}
 }
