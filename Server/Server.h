@@ -16,16 +16,17 @@ public:
 	void StartUp(unsigned short port);
 	void Update();
 
-	void CreateServer(const char* serverName, unsigned short port);
+	// Test
+	
 
 	void HandleNetworkMessages();
 
 	RakNet::RakPeerInterface* m_pPeerInterface;
 private:
+	void CreateServer(const char* serverName, unsigned short port);
+	void SendNewClientID(RakNet::RakPeerInterface* pPeerInterface, RakNet::SystemAddress& address);
 
-
+	unsigned int m_nextClientID = 1;
 	unsigned short m_port;
-	bool m_running;
-	char* m_serverName;
 };
 

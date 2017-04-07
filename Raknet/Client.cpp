@@ -23,7 +23,10 @@ void Client::StartUp(char* ip, unsigned short port) {
 
 void Client::Update() {
 	HandleNetworkMessages();
-	//PrintBuffer();
+}
+
+void Client::SetUsername(const char * username) {
+	m_username = username;
 }
 
 void Client::HandleNetworkConnection() {
@@ -73,6 +76,12 @@ void Client::HandleNetworkMessages() {
 		case ID_CONNECTION_LOST:
 			std::cout << "Connection lost.\n";
 			break;
+		case ID_SERVER_SET_CLIENT_ID:
+			OnSetClientID(packet);
+			break;
+		case ID_CLIENT_CLIENT_DATA:
+			OnReceivedClientDataPacket(packet);
+			break;
 		case ID_SERVER_TEXT_MESSAGE:
 		{
 			RakNet::BitStream bsIn(packet->data, packet->length, false);
@@ -91,6 +100,32 @@ void Client::HandleNetworkMessages() {
 	}
 }
 
+void Client::OnSetClientID(RakNet::Packet * packet) {
+	RakNet::BitStream bsIn(packet->data, packet->length, false);
+	bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+	bsIn.Read(m_clientID);
+
+	std::string message = "Client ID = ";
+	message += std::to_string(m_clientID);
+	AddMessage(message);
+}
+
+void Client::OnReceivedClientDataPacket(RakNet::Packet * packet) {
+	RakNet::BitStream bsIn(packet->data, packet->length, false);
+	bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+
+	int clientID;
+	bsIn.Read(clientID);
+
+	if(clientID != m_clientID) {
+		RakNet::RakString message;
+		bsIn.Read(message);
+
+		std::string finalMessage = message.C_String();
+		AddMessage(finalMessage);
+	}
+}
+
 void Client::GetInput() {
 	while(true) {
 		if(_kbhit()) {
@@ -104,7 +139,9 @@ void Client::GetInput() {
 				}
 				break;
 			case ENTER:
+				m_buffer = m_username + ": " + m_buffer;
 				AddMessage(m_buffer);
+				SendServerMessage(m_buffer.c_str());
 				m_buffer.clear();
 				break;
 			default:
@@ -114,6 +151,17 @@ void Client::GetInput() {
 			}
 		}
 	}
+}
+
+void Client::SendServerMessage(const std::string message) {
+	RakNet::BitStream bs;
+	bs.Write((RakNet::MessageID)GameMessages::ID_CLIENT_CLIENT_DATA);
+	bs.Write(m_clientID);
+
+	RakNet::RakString sendMessage = message.c_str();
+	bs.Write(sendMessage);
+
+	m_pPeerInterface->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
 void Client::AddMessage(const std::string message) {

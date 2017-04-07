@@ -21,6 +21,8 @@ public:
 	void StartUp(char* ip, unsigned short port);
 	void Update();
 
+	void SetUsername(const char* username);
+
 private:
 	// Initialize the connection
 	void HandleNetworkConnection();
@@ -29,18 +31,15 @@ private:
 	// Handle incoming packets
 	void HandleNetworkMessages();
 
-	// Private Variables
-	RakNet::RakPeerInterface* m_pPeerInterface;
+	void OnSetClientID(RakNet::Packet* packet);
+	void OnReceivedClientDataPacket(RakNet::Packet* packet);
 
 	// CHAT
-
 	std::thread* m_inputThread;
 	std::thread* m_printThread;
-
-	std::mutex mutex;
-
 	void GetInput();
 
+	void SendServerMessage(const std::string message);
 	void AddMessage(const std::string message);
 	void PrintBuffer();
 	void FillBuffer();
@@ -51,7 +50,11 @@ private:
 	std::string m_buffer = "";
 	std::vector<std::string> m_chatBuffer;
 
+	// Variables
+	RakNet::RakPeerInterface* m_pPeerInterface;
 
 	char* IP = "0.0.0.0";
 	unsigned short PORT = 0;
+	unsigned int m_clientID = 0;
+	std::string m_username = "NoName";
 };
